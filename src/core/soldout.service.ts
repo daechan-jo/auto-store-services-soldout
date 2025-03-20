@@ -1,4 +1,4 @@
-import { CronType } from '@daechanjo/models';
+import { CronType, CoupangPagingProduct } from '@daechanjo/models';
 import { RabbitMQService } from '@daechanjo/rabbitmq';
 import { UtilService } from '@daechanjo/util';
 import { Injectable } from '@nestjs/common';
@@ -18,27 +18,21 @@ export class SoldoutService {
 
   async soldoutProductsManagement(cronId: string) {
     const store = this.configService.get<string>('STORE');
-    const lastCronTime = new Date(2025, 0, 1, 0, 0, 0);
 
     console.log(`${CronType.SOLDOUT}${cronId}: 온채널 품절 상품 탐색...`);
-    const productCodes = await this.rabbitmqService.send(
-      'onch-queue',
-      'crawlingOnchSoldoutProducts',
-      {
-        lastCronTime: lastCronTime.toISOString(),
-        store: store,
-        type: CronType.SOLDOUT,
-        cronId: cronId,
-      },
-    );
+    const response = await this.rabbitmqService.send('onch-queue', 'crawlingOnchSoldoutProducts', {
+      store: store,
+      type: CronType.SOLDOUT,
+      cronId: cronId,
+    });
 
-    if (productCodes.data.stockProductCodes.length === 0) {
+    if (response.data.soldoutProductCodes.length === 0) {
       console.log(`${CronType.SOLDOUT}${cronId}: 품절 상품이 없습니다.`);
       return;
     }
 
     console.log(
-      `${CronType.SOLDOUT}${cronId}: 온채널 품절 상품\n${productCodes.data.stockProductCodes}`,
+      `${CronType.SOLDOUT}${cronId}: 온채널 품절 상품\n${response.data.stockProductCodes}`,
     );
 
     console.log(`${CronType.SOLDOUT}${cronId}: 쿠팡 판매 상품 리스트업...`);
@@ -50,6 +44,7 @@ export class SoldoutService {
         type: CronType.SOLDOUT,
       },
     );
+    console.log(JSON.stringify(coupangProducts));
 
     // console.log(`${CronType.SOLDOUT}${cronId}: 네이버 판매 상품 리스트업...`);
     // const naverProducts = await this.rabbitmqService.send('naver-queue', 'postSearchProducts', {
@@ -61,7 +56,7 @@ export class SoldoutService {
     await this.deleteMatchProducts(
       cronId,
       store,
-      productCodes.data,
+      response.data.soldoutProductCodes,
       coupangProducts.data,
       // naverProducts.data,
     );
@@ -70,8 +65,8 @@ export class SoldoutService {
   async deleteMatchProducts(
     cronId: string,
     store: string,
-    productCodes: { stockProductCodes: any; productDates?: string[] },
-    coupangProducts: any[],
+    soldoutProductCodes: string[],
+    coupangProducts: CoupangPagingProduct[],
     // naverProducts: any[],
   ) {
     console.log(`${CronType.SOLDOUT}${cronId}: 품절 상품 매칭...`);
@@ -81,11 +76,13 @@ export class SoldoutService {
     // 유효성 체크
     const isCoupangProductsValid = Array.isArray(coupangProducts) && coupangProducts.length > 0;
     // const isNaverProductsValid = Array.isArray(naverProducts) && naverProducts.length > 0;
+    if (!isCoupangProductsValid)
+      console.log(`${type}${cronId}: 쿠팡 상품 데이터가 유효하지 않거나 비어 있습니다.`);
 
     const matchedCoupangProducts = isCoupangProductsValid
       ? coupangProducts.filter((product) => {
           const extractedCode = product?.sellerProductName?.match(/(CH\d{7})/)?.[0] || '';
-          return productCodes.stockProductCodes.includes(extractedCode);
+          return soldoutProductCodes.includes(extractedCode);
         })
       : [];
 
@@ -95,8 +92,6 @@ export class SoldoutService {
     //     })
     //   : [];
 
-    if (!isCoupangProductsValid)
-      console.log(`${type}${cronId}: 쿠팡 상품 데이터가 유효하지 않거나 비어 있습니다.`);
     if (matchedCoupangProducts.length === 0 && isCoupangProductsValid)
       console.log(`${type}${cronId}: 매치된 쿠팡 상품이 없습니다.`);
 
@@ -121,6 +116,15 @@ export class SoldoutService {
         type: CronType.SOLDOUT,
         matchedProducts: matchedCoupangProducts,
       });
+
+      console.log(`${type}${cronId}: 온채널 등록 상품 삭제`);
+      await this.rabbitmqService.emit('onch-queue', 'deleteProducts', {
+        cronId: cronId,
+        store: store,
+        type: CronType.SOLDOUT,
+        matchedCoupangProducts: matchedCoupangProducts,
+        // matchedNaverProducts: matchedNaverProducts,
+      });
     }
 
     // if (matchedNaverProducts.length > 0) {
@@ -133,18 +137,9 @@ export class SoldoutService {
     //     matchedNaverProducts: matchedNaverProducts,
     //   });
     // }
-
-    console.log(`${type}${cronId}: 온채널 등록 상품 삭제`);
-    await this.rabbitmqService.emit('onch-queue', 'deleteProducts', {
-      cronId: cronId,
-      store: store,
-      type: CronType.SOLDOUT,
-      matchedCoupangProducts: matchedCoupangProducts,
-      // matchedNaverProducts: matchedNaverProducts,
-    });
   }
 
-  @Cron('0 */20 * * * *')
+  @Cron('0 */10 * * * *')
   async soldOutCron() {
     const cronId = this.utilService.generateCronId();
     const rockKey = `lock:soldout:${this.configService.get<string>('STORE')}`;
