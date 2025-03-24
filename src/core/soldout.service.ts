@@ -1,4 +1,5 @@
 import { CronType, CoupangPagingProduct } from '@daechanjo/models';
+import { NaverChannelProduct } from '@daechanjo/models/dist/interfaces/naver/naverChannelProduct.interface';
 import { RabbitMQService } from '@daechanjo/rabbitmq';
 import { UtilService } from '@daechanjo/util';
 import { Injectable } from '@nestjs/common';
@@ -31,43 +32,39 @@ export class SoldoutService {
       return;
     }
 
-    console.log(
-      `${CronType.SOLDOUT}${cronId}: 온채널 품절 상품\n${response.data.stockProductCodes}`,
-    );
-
-    console.log(`${CronType.SOLDOUT}${cronId}: 쿠팡 판매 상품 리스트업...`);
-    const coupangProducts = await this.rabbitmqService.send(
-      'coupang-queue',
-      'getProductListPaging',
-      {
+    console.log(`${CronType.SOLDOUT}${cronId}: 쿠팡/네이버 판매 상품 리스트업...`);
+    const [coupangProducts, naverProducts] = await Promise.all([
+      this.rabbitmqService.send('coupang-queue', 'getProductListPaging', {
         cronId: cronId,
         type: CronType.SOLDOUT,
-      },
-    );
-    console.log(JSON.stringify(coupangProducts));
+      }),
+      this.rabbitmqService.send('naver-queue', 'postSearchProducts', {
+        cronId: cronId,
+        type: CronType.SOLDOUT,
+      }),
+    ]);
 
-    // console.log(`${CronType.SOLDOUT}${cronId}: 네이버 판매 상품 리스트업...`);
-    // const naverProducts = await this.rabbitmqService.send('naver-queue', 'postSearchProducts', {
-    //   cronId: cronId,
-    //   store: store,
-    //   type: CronType.SOLDOUT,
-    // });
-
-    await this.deleteMatchProducts(
-      cronId,
-      store,
-      response.data.soldoutProductCodes,
-      coupangProducts.data,
-      // naverProducts.data,
-    );
+    await Promise.all([
+      this.deleteMatchCoupangProducts(
+        cronId,
+        store,
+        response.data.soldoutProductCodes,
+        coupangProducts.data,
+      ),
+      this.deleteMatchNaverProducts(
+        cronId,
+        store,
+        response.data.soldoutProductCodes,
+        naverProducts.data,
+      ),
+    ]);
   }
 
-  async deleteMatchProducts(
+  async deleteMatchCoupangProducts(
     cronId: string,
     store: string,
     soldoutProductCodes: string[],
     coupangProducts: CoupangPagingProduct[],
-    // naverProducts: any[],
   ) {
     console.log(`${CronType.SOLDOUT}${cronId}: 품절 상품 매칭...`);
 
@@ -86,21 +83,8 @@ export class SoldoutService {
         })
       : [];
 
-    // const matchedNaverProducts = isNaverProductsValid
-    //   ? naverProducts.filter((product) => {
-    //       return productCodes.stockProductCodes.includes(product.sellerManagementCode);
-    //     })
-    //   : [];
-
     if (matchedCoupangProducts.length === 0 && isCoupangProductsValid)
       console.log(`${type}${cronId}: 매치된 쿠팡 상품이 없습니다.`);
-
-    // if (!isNaverProductsValid)
-    //   console.log(`${type}${cronId}: 네이버 상품 데이터가 유효하지 않거나 비어 있습니다.`);
-    // if (matchedNaverProducts.length === 0 && isNaverProductsValid)
-    //   console.log(`${type}${cronId}: 매치된 네이버 상품이 없습니다.`);
-    //
-    // if (matchedCoupangProducts.length === 0 && matchedNaverProducts.length === 0) return;
 
     if (matchedCoupangProducts.length > 0) {
       console.log(`${type}${cronId}: 쿠팡 품절 상품 ${matchedCoupangProducts.length}개 정지 시작`);
@@ -122,21 +106,49 @@ export class SoldoutService {
         cronId: cronId,
         store: store,
         type: CronType.SOLDOUT,
-        matchedCoupangProducts: matchedCoupangProducts,
-        // matchedNaverProducts: matchedNaverProducts,
+        products: matchedCoupangProducts,
       });
     }
+  }
 
-    // if (matchedNaverProducts.length > 0) {
-    //   console.log(`${type}${cronId}: 네이버품절 ${matchedNaverProducts.length}개`);
-    //   console.log(`${type}${cronId}: 네이버상품 판매삭제`);
-    //   await this.rabbitmqService.emit('naver-queue', 'deleteNaverOriginProducts', {
-    //     cronId: cronId,
-    //     store: store,
-    //     type: CronType.SOLDOUT,
-    //     matchedNaverProducts: matchedNaverProducts,
-    //   });
-    // }
+  async deleteMatchNaverProducts(
+    cronId: string,
+    store: string,
+    soldoutProductCodes: string[],
+    naverProducts: NaverChannelProduct[],
+  ) {
+    console.log(`${CronType.SOLDOUT}${cronId}: 품절 상품 매칭...`);
+
+    const type = CronType.SOLDOUT;
+
+    const isNaverProductsValid = Array.isArray(naverProducts) && naverProducts.length > 0;
+    if (!isNaverProductsValid)
+      console.log(`${type}${cronId}: 네이버 상품 데이터가 유효하지 않거나 비어 있습니다.`);
+
+    const matchedNaverProducts = isNaverProductsValid
+      ? naverProducts.filter((product) => {
+          return soldoutProductCodes.includes(product.sellerManagementCode);
+        })
+      : [];
+
+    if (matchedNaverProducts.length > 0) {
+      console.log(`${type}${cronId}: 네이버품절 ${matchedNaverProducts.length}개`);
+      console.log(`${type}${cronId}: 네이버상품 삭제`);
+      await this.rabbitmqService.emit('naver-queue', 'deleteNaverOriginProducts', {
+        cronId: cronId,
+        store: store,
+        type: CronType.SOLDOUT,
+        matchedNaverProducts: matchedNaverProducts,
+      });
+
+      console.log(`${type}${cronId}: 온채널 등록 상품 삭제`);
+      await this.rabbitmqService.emit('onch-queue', 'deleteProducts', {
+        cronId: cronId,
+        store: store,
+        type: CronType.SOLDOUT,
+        products: matchedNaverProducts,
+      });
+    }
   }
 
   @Cron('0 */10 * * * *')

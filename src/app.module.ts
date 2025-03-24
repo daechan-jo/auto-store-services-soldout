@@ -42,6 +42,6 @@ export class AppModule implements OnApplicationBootstrap {
     setTimeout(async () => {});
     const rockKey = `lock:soldout:${this.configService.get<string>('STORE')}`;
     await this.redis.del(rockKey);
-    // await this.soldoutService.soldOutCron();
+    await this.soldoutService.soldOutCron();
   }
 }
