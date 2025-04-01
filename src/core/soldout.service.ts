@@ -88,17 +88,17 @@ export class SoldoutService {
 
     if (matchedCoupangProducts.length > 0) {
       console.log(`${type}${cronId}: 쿠팡 품절 상품 ${matchedCoupangProducts.length}개 정지 시작`);
-      await this.rabbitmqService.send('coupang-queue', 'stopSaleForMatchedProducts', {
+      await this.rabbitmqService.send('coupang-queue', 'stopSaleBySellerProductId', {
         cronId: cronId,
         type: CronType.SOLDOUT,
-        matchedProducts: matchedCoupangProducts,
+        data: matchedCoupangProducts,
       });
 
       console.log(`${type}${cronId}: 쿠팡 품절 상품 ${matchedCoupangProducts.length}개 삭제 시작`);
-      await this.rabbitmqService.send('coupang-queue', 'deleteProducts', {
+      await this.rabbitmqService.send('coupang-queue', 'deleteBySellerProductId', {
         cronId: cronId,
         type: CronType.SOLDOUT,
-        matchedProducts: matchedCoupangProducts,
+        data: matchedCoupangProducts,
       });
 
       console.log(`${type}${cronId}: 온채널 등록 상품 삭제`);
@@ -106,7 +106,7 @@ export class SoldoutService {
         cronId: cronId,
         store: store,
         type: CronType.SOLDOUT,
-        products: matchedCoupangProducts,
+        data: matchedCoupangProducts,
       });
     }
   }
@@ -151,7 +151,7 @@ export class SoldoutService {
     }
   }
 
-  @Cron('0 */10 * * * *')
+  @Cron('0 */20 * * * *')
   async soldOutCron() {
     const cronId = this.utilService.generateCronId();
     const rockKey = `lock:soldout:${this.configService.get<string>('STORE')}`;
