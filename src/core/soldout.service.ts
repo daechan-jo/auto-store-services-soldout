@@ -47,7 +47,6 @@ export class SoldoutService {
     await Promise.all([
       this.deleteMatchCoupangProducts(
         jobId,
-        store,
         response.data.soldoutProductCodes,
         coupangProducts.data,
       ),
@@ -62,7 +61,6 @@ export class SoldoutService {
 
   async deleteMatchCoupangProducts(
     jobId: string,
-    store: string,
     soldoutProductCodes: string[],
     coupangProducts: CoupangPagingProduct[],
   ) {
@@ -109,7 +107,6 @@ export class SoldoutService {
       await this.rabbitmqService.emit('onch-queue', 'deleteProducts', {
         jobId: jobId,
         jobType: JobType.SOLDOUT,
-        store: store,
         data: matchedCoupangProducts,
       });
     }
