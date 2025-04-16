@@ -17,7 +17,14 @@ export class SoldoutService {
     @InjectRedis() private readonly redis: Redis,
   ) {}
 
-  async soldoutProductsManagement(jobId: string) {
+  /**
+   * 온채널 품절 상품 관리 메서드
+   * 온채널에서 품절된 상품을 찾아 쿠팡과 네이버에서 해당 상품을 삭제하는 작업을 수행합니다.
+   *
+   * @param {string} jobId - 작업 식별을 위한 고유 ID
+   * @returns {Promise<void>} 작업 완료 후 아무것도 반환하지 않음
+   */
+  async soldoutProductsManagement(jobId: string): Promise<void> {
     const store = this.configService.get<string>('STORE');
 
     console.log(`${JobType.SOLDOUT}${jobId}: 온채널 품절 상품 탐색...`);
@@ -59,11 +66,20 @@ export class SoldoutService {
     ]);
   }
 
+  /**
+   * 품절된 상품과 일치하는 쿠팡 상품 삭제 메서드
+   * 온채널에서 품절된 상품 코드와 일치하는 쿠팡 상품을 찾아 판매 중지 및 삭제 처리합니다.
+   *
+   * @param {string} jobId - 작업 식별을 위한 고유 ID
+   * @param {string[]} soldoutProductCodes - 품절된 상품의 코드 배열
+   * @param {CoupangPagingProduct[]} coupangProducts - 쿠팡에 등록된 상품 목록
+   * @returns {Promise<void>} 작업 완료 후 아무것도 반환하지 않음
+   */
   async deleteMatchCoupangProducts(
     jobId: string,
     soldoutProductCodes: string[],
     coupangProducts: CoupangPagingProduct[],
-  ) {
+  ): Promise<void> {
     console.log(`${JobType.SOLDOUT}${jobId}: 품절 상품 매칭...`);
 
     const jobType = JobType.SOLDOUT;
@@ -112,12 +128,22 @@ export class SoldoutService {
     }
   }
 
+  /**
+   * 품절된 상품과 일치하는 네이버 상품 삭제 메서드
+   * 온채널에서 품절된 상품 코드와 일치하는 네이버 상품을 찾아 삭제 처리합니다.
+   *
+   * @param {string} jobId - 작업 식별을 위한 고유 ID
+   * @param {string} store - 스토어 식별자
+   * @param {string[]} soldoutProductCodes - 품절된 상품의 코드 배열
+   * @param {NaverChannelProduct[]} naverProducts - 네이버에 등록된 상품 목록
+   * @returns {Promise<void>} 작업 완료 후 아무것도 반환하지 않음
+   */
   async deleteMatchNaverProducts(
     jobId: string,
     store: string,
     soldoutProductCodes: string[],
     naverProducts: NaverChannelProduct[],
-  ) {
+  ): Promise<void> {
     console.log(`${JobType.SOLDOUT}${jobId}: 품절 상품 매칭...`);
 
     const jobType = JobType.SOLDOUT;
@@ -152,8 +178,15 @@ export class SoldoutService {
     }
   }
 
+  /**
+   * 품절 상품 정기 크론 작업
+   * 20분마다 실행되며 품절된 상품을 감지하고 삭제하는 크론 작업을 수행합니다.
+   * Redis를 이용한 락 메커니즘으로 중복 실행을 방지합니다.
+   *
+   * @returns {Promise<void>} 작업 완료 후 아무것도 반환하지 않음
+   */
   @Cron('0 */20 * * * *')
-  async soldOutCron() {
+  async soldOutCron(): Promise<void> {
     const jobId = this.utilService.generateCronId();
     const rockKey = `lock:soldout:${this.configService.get<string>('STORE')}`;
 
