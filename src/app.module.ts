@@ -12,6 +12,7 @@ import Redis from 'ioredis';
 import { redisConfig } from './config/redis.config';
 import { TypeormConfig } from './config/typeorm.config';
 import { SoldoutService } from './core/soldout.service';
+import process from 'node:process';
 
 @Module({
   imports: [
@@ -45,6 +46,9 @@ export class AppModule implements OnApplicationBootstrap {
     setTimeout(async () => {});
     const rockKey = `lock:soldout:${this.configService.get<string>('STORE')}`;
     await this.redis.del(rockKey);
+    console.log('환경변수', process.env.K8S_RABBITMQ_URL);
+    console.log('환경변수', process.env.RABBITMQ_URL);
+    console.log('환경변수', process.env.REDIS_URL);
     await this.soldoutService.soldOutCron();
   }
 }
