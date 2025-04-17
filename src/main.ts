@@ -15,7 +15,7 @@ isDev
   ? dotenv.config({
       path: '/Users/daechanjo/codes/project/auto-store/.env',
     })
-  : dotenv.config();
+  : dotenv.config({ path: '/app/.env' });
 
 async function bootstrap() {
   const appConfig = AppConfig.getInstance();
