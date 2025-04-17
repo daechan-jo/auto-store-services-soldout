@@ -18,7 +18,10 @@ import { SoldoutService } from './core/soldout.service';
     ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '/Users/daechanjo/codes/project/auto-store/.env',
+      envFilePath:
+        process.env.NODE_ENV !== 'PROD'
+          ? '/Users/daechanjo/codes/project/auto-store/.env'
+          : '/app/.env',
     }),
     TypeOrmModule.forRootAsync(TypeormConfig),
     RedisModule.forRootAsync({
