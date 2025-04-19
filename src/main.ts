@@ -1,6 +1,7 @@
 import * as process from 'node:process';
 
 import { setupGlobalConsoleLogging } from '@daechanjo/log';
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import * as dotenv from 'dotenv';
@@ -8,14 +9,15 @@ import { initializeTransactionalContext } from 'typeorm-transactional';
 
 import { AppModule } from './app.module';
 import { AppConfig } from './config/app.config';
-import { ValidationPipe } from '@nestjs/common';
 
 const isDev = process.env.NODE_ENV !== 'PROD';
-isDev
-  ? dotenv.config({
-      path: '/Users/daechanjo/codes/project/auto-store/.env',
-    })
-  : dotenv.config({ path: '/app/.env' });
+if (isDev) {
+  dotenv.config({
+    path: '/Users/daechanjo/codes/project/auto-store/.env',
+  });
+} else {
+  dotenv.config({ path: '/app/.env' });
+}
 
 async function bootstrap() {
   const appConfig = AppConfig.getInstance();
@@ -27,7 +29,7 @@ async function bootstrap() {
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.RMQ,
     options: {
-      urls: [isDev ? String(process.env.RABBITMQ_URL) : String(process.env.K8S_RABBITMQ_URL)],
+      urls: [String(process.env.RABBITMQ_URL)],
       queue: 'soldout-queue',
       queueOptions: { durable: false },
     },
