@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/hush-mart/soldout/compare/v1.3.0...v1.4.0) (2025-04-19)
+
+
+### Features
+
+* import process module and refactor onApplicationBootstrap method ([e036a68](https://github.com/hush-mart/soldout/commit/e036a68596bb1ff4a39ba626b9c7e6652473ac86))
+
 # [1.3.0](https://github.com/hush-mart/soldout/compare/v1.2.0...v1.3.0) (2025-04-19)
 
 
