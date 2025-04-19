@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/hush-mart/soldout/compare/v1.2.0...v1.3.0) (2025-04-19)
+
+
+### Features
+
+* add ESLint configuration and integrate RabbitMQ module ([88b9f26](https://github.com/hush-mart/soldout/commit/88b9f26524c0f16e5e743017947761dd946128ec))
+
 # [1.2.0](https://github.com/hush-mart/soldout/compare/v1.1.2...v1.2.0) (2025-04-19)
 
 
