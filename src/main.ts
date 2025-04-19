@@ -61,7 +61,6 @@ async function bootstrap() {
 
   await app.startAllMicroservices();
   await app.listen(9004, '0.0.0.0');
-
   console.log('품절관리 서비스 시작');
 }
 
