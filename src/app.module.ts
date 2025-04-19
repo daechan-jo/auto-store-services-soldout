@@ -1,3 +1,5 @@
+import process from 'node:process';
+
 import { PlaywrightModule } from '@daechanjo/playwright';
 import { RabbitMQModule } from '@daechanjo/rabbitmq';
 import { UtilModule } from '@daechanjo/util';
@@ -12,7 +14,6 @@ import Redis from 'ioredis';
 import { redisConfig } from './config/redis.config';
 import { TypeormConfig } from './config/typeorm.config';
 import { SoldoutService } from './core/soldout.service';
-import process from 'node:process';
 
 @Module({
   imports: [
@@ -48,10 +49,9 @@ export class AppModule implements OnApplicationBootstrap {
     @InjectRedis() private readonly redis: Redis,
   ) {}
 
-  async onApplicationBootstrap() {
-    setTimeout(async () => {});
-    const rockKey = `lock:soldout:${this.configService.get<string>('STORE')}`;
-    await this.redis.del(rockKey);
-    await this.soldoutService.soldOutCron();
-  }
+  async onApplicationBootstrap() {}
+  // setTimeout(async () => {});
+  // const rockKey = `lock:soldout:${this.configService.get<string>('STORE')}`;
+  // await this.redis.del(rockKey);
+  // await this.soldoutService.soldOutCron();
 }
