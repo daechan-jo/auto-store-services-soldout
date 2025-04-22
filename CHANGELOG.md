@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/hush-mart/soldout/compare/v1.4.0...v1.5.0) (2025-04-22)
+
+
+### Features
+
+* update soldout service to send formatted product data for deletion ([856d2b5](https://github.com/hush-mart/soldout/commit/856d2b5af80a243a999bc8cba4224faeb74ab3c5))
+
 # [1.4.0](https://github.com/hush-mart/soldout/compare/v1.3.0...v1.4.0) (2025-04-19)
 
 
