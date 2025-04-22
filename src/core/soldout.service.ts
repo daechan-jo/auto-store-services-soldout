@@ -101,13 +101,19 @@ export class SoldoutService {
       console.log(`${jobType}${jobId}: 매치된 쿠팡 상품이 없습니다.`);
 
     if (matchedCoupangProducts.length > 0) {
+      const deleteProducts = matchedCoupangProducts.map((product) => {
+        return {
+          sellerProductId: String(product.sellerProductId),
+          productName: product.sellerProductName,
+        };
+      });
       console.log(
         `${jobType}${jobId}: 쿠팡 품절 상품 ${matchedCoupangProducts.length}개 정지 시작`,
       );
       await this.rabbitmqService.send('coupang-queue', 'stopSaleBySellerProductId', {
         jobId: jobId,
         jobType: JobType.SOLDOUT,
-        data: matchedCoupangProducts,
+        data: deleteProducts,
       });
 
       console.log(
@@ -116,7 +122,7 @@ export class SoldoutService {
       await this.rabbitmqService.send('coupang-queue', 'deleteBySellerProductId', {
         jobId: jobId,
         jobType: JobType.SOLDOUT,
-        data: matchedCoupangProducts,
+        data: deleteProducts,
       });
 
       console.log(`${jobType}${jobId}: 온채널 등록 상품 삭제`);
